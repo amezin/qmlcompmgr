@@ -41,7 +41,7 @@ private Q_SLOTS:
     void restack();
 
 private:
-    template<typename T> void xcbDispatchEvent(const T *);
+    template<typename T> bool xcbDispatchEvent(const T *);
     template<typename T> bool xcbEvent(const T *);
 
     bool nativeEventFilter(const QByteArray &eventType, void *message, long *) Q_DECL_OVERRIDE;

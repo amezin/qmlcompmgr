@@ -13,14 +13,19 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
       above_(XCB_NONE)
 {
     auto attributesCookie = xcb_get_window_attributes(connection_, window_);
-    auto geometryCookie = xcb_get_geometry(connection_, window_);
-
     auto attributes = xcb_get_window_attributes_reply(connection_, attributesCookie, Q_NULLPTR);
+    if (!attributes) {
+        return;
+    }
+
+    attributes->your_event_mask |= XCB_EVENT_MASK_STRUCTURE_NOTIFY;
+    xcb_change_window_attributes(connection_, window_, XCB_CW_EVENT_MASK, &attributes->your_event_mask);
+
+    auto geometryCookie = xcb_get_geometry(connection_, window_);
     auto geometry = xcb_get_geometry_reply(connection_, geometryCookie, Q_NULLPTR);
 
-    if (!attributes || !geometry) {
+    if (!geometry) {
         std::free(attributes);
-        std::free(geometry);
         return;
     }
 

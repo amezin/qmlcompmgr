@@ -90,12 +90,14 @@ Compositor::~Compositor()
 }
 
 template<typename T>
-void Compositor::xcbDispatchEvent(const T *e)
+bool Compositor::xcbDispatchEvent(const T *e)
 {
     auto i = windows_.constFind(e->window);
     if (i != windows_.constEnd()) {
         (*i)->xcbEvent(e);
+        return true;
     }
+    return false;
 }
 
 template<typename T>
@@ -104,28 +106,25 @@ bool Compositor::xcbEvent(const T *e)
     if (e->event != root_) {
         return false;
     }
-
-    xcbDispatchEvent(e);
-    return true;
+    return xcbDispatchEvent(e);
 }
 
 template<>
 bool Compositor::xcbEvent(const xcb_configure_notify_event_t *e)
 {
-    if (e->event != root_) {
-        return false;
-    }
-
     if (e->window == root_) {
         QRect newGeometry(0, 0, e->width, e->height);
         if (rootGeometry_ != newGeometry) {
             rootGeometry_ = newGeometry;
             Q_EMIT rootGeometryChanged(rootGeometry_);
         }
-    } else {
-        xcbDispatchEvent(e);
     }
-    return true;
+
+    if (e->window != e->event) {
+        return false;
+    }
+
+    return xcbDispatchEvent(e);
 }
 
 template<>
@@ -163,8 +162,7 @@ bool Compositor::xcbEvent(const xcb_reparent_notify_event_t *e)
         removeChildWindow(e->window);
     }
 
-    xcbDispatchEvent(e);
-    return true;
+    return xcbDispatchEvent(e);
 }
 
 bool Compositor::nativeEventFilter(const QByteArray &eventType, void *message, long *)
