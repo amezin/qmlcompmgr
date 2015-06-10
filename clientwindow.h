@@ -16,6 +16,7 @@ class ClientWindow : public QObject, public QEnableSharedFromThis<ClientWindow>
     Q_PROPERTY(QRect geometry READ geometry NOTIFY geometryChanged)
     Q_PROPERTY(bool mapped READ isMapped NOTIFY mapStateChanged)
     Q_PROPERTY(int zIndex READ zIndex WRITE setZIndex NOTIFY zIndexChanged)
+    Q_PROPERTY(bool overrideRedirect READ isOverrideRedirect NOTIFY overrideRedirectChanged)
 public:
     ClientWindow(xcb_connection_t *, xcb_window_t, QObject *parent = Q_NULLPTR);
     ~ClientWindow() Q_DECL_OVERRIDE;
@@ -62,6 +63,11 @@ public:
         }
     }
 
+    bool isOverrideRedirect() const
+    {
+        return overrideRedirect_;
+    }
+
     void xcbEvent(const xcb_configure_notify_event_t *);
     void xcbEvent(const xcb_map_notify_event_t *);
     void xcbEvent(const xcb_unmap_notify_event_t *);
@@ -81,6 +87,7 @@ Q_SIGNALS:
     void geometryChanged(const QRect &geometry);
     void mapStateChanged(bool mapped);
     void zIndexChanged(int zIndex);
+    void overrideRedirectChanged(bool overrideRedirect);
 
     void pixmapChanged(WindowPixmap *pixmap);
     void stackingOrderChanged();
@@ -88,6 +95,7 @@ Q_SIGNALS:
 private:
     void setMapped(bool);
     void setGeometry(const QRect &);
+    void setOverrideRedirect(bool);
 
     xcb_connection_t *connection_;
     xcb_window_t window_;
@@ -99,4 +107,5 @@ private:
     bool pixmapRealloc_;
     int zIndex_;
     xcb_window_t above_;
+    bool overrideRedirect_;
 };
