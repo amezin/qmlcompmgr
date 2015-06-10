@@ -41,6 +41,7 @@ private Q_SLOTS:
     void restack();
 
 private:
+    template<typename T> bool xcbDispatchEvent(const T *, xcb_window_t);
     template<typename T> bool xcbDispatchEvent(const T *);
     template<typename T> bool xcbEvent(const T *);
 
@@ -51,7 +52,7 @@ private:
 
     xcb_connection_t *connection_;
     xcb_window_t root_;
-    const xcb_query_extension_reply_t *damageExt_;
+    const xcb_query_extension_reply_t *damageExt_, *shapeExt_;
 
     QMap<xcb_damage_damage_t, WindowPixmap *> pixmaps_;
     QMap<xcb_window_t, QSharedPointer<ClientWindow> > windows_;

@@ -40,6 +40,7 @@ target_link_libraries(libqmlcompmgr
                       xcb-damage
                       xcb-composite
                       xcb-xfixes
+                      xcb-shape
                       "${OPENGL_gl_LIBRARY}"
                       "${X11_X11_LIB}")
 

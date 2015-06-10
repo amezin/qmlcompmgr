@@ -5,6 +5,7 @@
 #include <QRect>
 
 #include <xcb/xcb.h>
+#include <xcb/shape.h>
 
 class WindowPixmap;
 
@@ -17,6 +18,7 @@ class ClientWindow : public QObject, public QEnableSharedFromThis<ClientWindow>
     Q_PROPERTY(bool mapped READ isMapped NOTIFY mapStateChanged)
     Q_PROPERTY(int zIndex READ zIndex WRITE setZIndex NOTIFY zIndexChanged)
     Q_PROPERTY(bool overrideRedirect READ isOverrideRedirect NOTIFY overrideRedirectChanged)
+    Q_PROPERTY(bool shaped READ isShaped NOTIFY shapedChanged)
 public:
     ClientWindow(xcb_connection_t *, xcb_window_t, QObject *parent = Q_NULLPTR);
     ~ClientWindow() Q_DECL_OVERRIDE;
@@ -68,12 +70,18 @@ public:
         return overrideRedirect_;
     }
 
+    bool isShaped() const
+    {
+        return clipShaped_ || boundingShaped_;
+    }
+
     void xcbEvent(const xcb_configure_notify_event_t *);
     void xcbEvent(const xcb_map_notify_event_t *);
     void xcbEvent(const xcb_unmap_notify_event_t *);
     void xcbEvent(const xcb_reparent_notify_event_t *);
     void xcbEvent(const xcb_gravity_notify_event_t *);
     void xcbEvent(const xcb_circulate_notify_event_t *);
+    void xcbEvent(const xcb_shape_notify_event_t *);
     void invalidate();
     void setAbove(xcb_window_t above)
     {
@@ -88,6 +96,7 @@ Q_SIGNALS:
     void mapStateChanged(bool mapped);
     void zIndexChanged(int zIndex);
     void overrideRedirectChanged(bool overrideRedirect);
+    void shapedChanged(bool shaped);
 
     void pixmapChanged(WindowPixmap *pixmap);
     void stackingOrderChanged();
@@ -108,4 +117,5 @@ private:
     int zIndex_;
     xcb_window_t above_;
     bool overrideRedirect_;
+    bool boundingShaped_, clipShaped_;
 };

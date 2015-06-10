@@ -11,7 +11,9 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
       mapped_(false),
       pixmapRealloc_(true),
       above_(XCB_NONE),
-      overrideRedirect_(false)
+      overrideRedirect_(false),
+      boundingShaped_(false),
+      clipShaped_(false)
 {
     auto attributesCookie = xcb_get_window_attributes(connection_, window_);
     auto attributes = xcb_get_window_attributes_reply(connection_, attributesCookie, Q_NULLPTR);
@@ -21,12 +23,18 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
 
     attributes->your_event_mask |= XCB_EVENT_MASK_STRUCTURE_NOTIFY;
     xcb_change_window_attributes(connection_, window_, XCB_CW_EVENT_MASK, &attributes->your_event_mask);
+    xcb_shape_select_input(connection_, window_, 1);
 
     auto geometryCookie = xcb_get_geometry(connection_, window_);
-    auto geometry = xcb_get_geometry_reply(connection_, geometryCookie, Q_NULLPTR);
+    auto shapeCookie = xcb_shape_query_extents(connection_, window_);
 
-    if (!geometry) {
+    auto geometry = xcb_get_geometry_reply(connection_, geometryCookie, Q_NULLPTR);
+    auto shape = xcb_shape_query_extents_reply(connection_, shapeCookie, Q_NULLPTR);
+
+    if (!geometry || !shape) {
         std::free(attributes);
+        std::free(geometry);
+        std::free(shape);
         return;
     }
 
@@ -35,9 +43,12 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
     geometry_ = QRect(geometry->x, geometry->y, geometry->width, geometry->height);
     mapped_ = (attributes->map_state == XCB_MAP_STATE_VIEWABLE);
     overrideRedirect_ = attributes->override_redirect;
+    boundingShaped_ = shape->bounding_shaped;
+    clipShaped_ = shape->clip_shaped;
 
     std::free(attributes);
     std::free(geometry);
+    std::free(shape);
 }
 
 ClientWindow::~ClientWindow()
@@ -128,4 +139,20 @@ void ClientWindow::xcbEvent(const xcb_gravity_notify_event_t *e)
 {
     Q_ASSERT(e->window == window_);
     setGeometry(QRect(e->x, e->y, geometry_.width(), geometry_.height()));
+}
+
+void ClientWindow::xcbEvent(const xcb_shape_notify_event_t *e)
+{
+    Q_ASSERT(e->affected_window == window_);
+
+    auto old = isShaped();
+    if (e->shape_kind & XCB_SHAPE_SK_BOUNDING) {
+        boundingShaped_ = e->shaped;
+    }
+    if (e->shape_kind & XCB_SHAPE_SK_CLIP) {
+        clipShaped_ = e->shaped;
+    }
+    if (isShaped() != old) {
+        Q_EMIT shapedChanged(isShaped());
+    }
 }
