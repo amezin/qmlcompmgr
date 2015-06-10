@@ -1,5 +1,7 @@
 #include "clientwindow.h"
 
+#include <xcb/xcb_event.h>
+
 #include "windowpixmap.h"
 
 ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QObject *parent)
@@ -13,7 +15,8 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
       above_(XCB_NONE),
       overrideRedirect_(false),
       boundingShaped_(false),
-      clipShaped_(false)
+      clipShaped_(false),
+      inputFocus_(true)
 {
     auto attributesCookie = xcb_get_window_attributes(connection_, window_);
     auto attributes = xcb_get_window_attributes_reply(connection_, attributesCookie, Q_NULLPTR);
@@ -21,7 +24,9 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
         return;
     }
 
-    attributes->your_event_mask |= XCB_EVENT_MASK_STRUCTURE_NOTIFY;
+    attributes->your_event_mask = attributes->your_event_mask
+            | XCB_EVENT_MASK_STRUCTURE_NOTIFY
+            | XCB_EVENT_MASK_FOCUS_CHANGE;
     xcb_change_window_attributes(connection_, window_, XCB_CW_EVENT_MASK, &attributes->your_event_mask);
     xcb_shape_select_input(connection_, window_, 1);
 
@@ -154,5 +159,18 @@ void ClientWindow::xcbEvent(const xcb_shape_notify_event_t *e)
     }
     if (isShaped() != old) {
         Q_EMIT shapedChanged(isShaped());
+    }
+}
+
+void ClientWindow::xcbEvent(const xcb_focus_in_event_t *e)
+{
+    Q_ASSERT(e->event == window_);
+
+    if (inputFocus_ && XCB_EVENT_RESPONSE_TYPE(e) == XCB_FOCUS_OUT && e->detail != XCB_NOTIFY_DETAIL_INFERIOR) {
+        inputFocus_ = false;
+        Q_EMIT inputFocusChanged(inputFocus_);
+    } else if (!inputFocus_ && XCB_EVENT_RESPONSE_TYPE(e) == XCB_FOCUS_IN) {
+        inputFocus_ = true;
+        Q_EMIT inputFocusChanged(inputFocus_);
     }
 }

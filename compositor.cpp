@@ -173,6 +173,12 @@ bool Compositor::xcbEvent(const xcb_reparent_notify_event_t *e)
     return xcbDispatchEvent(e);
 }
 
+template<>
+bool Compositor::xcbEvent(const xcb_focus_in_event_t *e)
+{
+    return xcbDispatchEvent(e, e->event);
+}
+
 bool Compositor::nativeEventFilter(const QByteArray &eventType, void *message, long *)
 {
     Q_ASSERT(eventType == QByteArrayLiteral("xcb_generic_event_t"));
@@ -211,6 +217,9 @@ bool Compositor::nativeEventFilter(const QByteArray &eventType, void *message, l
     case XCB_CIRCULATE_NOTIFY:
         restack();
         return true;
+    case XCB_FOCUS_IN:
+    case XCB_FOCUS_OUT:
+        return xcbEvent(static_cast<xcb_focus_in_event_t *>(message));
     default:
         return false;
     }

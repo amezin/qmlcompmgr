@@ -19,6 +19,7 @@ class ClientWindow : public QObject, public QEnableSharedFromThis<ClientWindow>
     Q_PROPERTY(int zIndex READ zIndex WRITE setZIndex NOTIFY zIndexChanged)
     Q_PROPERTY(bool overrideRedirect READ isOverrideRedirect NOTIFY overrideRedirectChanged)
     Q_PROPERTY(bool shaped READ isShaped NOTIFY shapedChanged)
+    Q_PROPERTY(bool inputFocus READ hasInputFocus NOTIFY inputFocusChanged)
 public:
     ClientWindow(xcb_connection_t *, xcb_window_t, QObject *parent = Q_NULLPTR);
     ~ClientWindow() Q_DECL_OVERRIDE;
@@ -75,6 +76,11 @@ public:
         return clipShaped_ || boundingShaped_;
     }
 
+    bool hasInputFocus() const
+    {
+        return inputFocus_;
+    }
+
     void xcbEvent(const xcb_configure_notify_event_t *);
     void xcbEvent(const xcb_map_notify_event_t *);
     void xcbEvent(const xcb_unmap_notify_event_t *);
@@ -82,6 +88,7 @@ public:
     void xcbEvent(const xcb_gravity_notify_event_t *);
     void xcbEvent(const xcb_circulate_notify_event_t *);
     void xcbEvent(const xcb_shape_notify_event_t *);
+    void xcbEvent(const xcb_focus_in_event_t *);
     void invalidate();
     void setAbove(xcb_window_t above)
     {
@@ -97,6 +104,7 @@ Q_SIGNALS:
     void zIndexChanged(int zIndex);
     void overrideRedirectChanged(bool overrideRedirect);
     void shapedChanged(bool shaped);
+    void inputFocusChanged(bool inputFocus);
 
     void pixmapChanged(WindowPixmap *pixmap);
     void stackingOrderChanged();
@@ -118,4 +126,5 @@ private:
     xcb_window_t above_;
     bool overrideRedirect_;
     bool boundingShaped_, clipShaped_;
+    bool inputFocus_;
 };
