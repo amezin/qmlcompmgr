@@ -37,6 +37,11 @@ public:
         return damage_;
     }
 
+    xcb_visualid_t visual() const
+    {
+        return visual_;
+    }
+
     const QSize &size() const
     {
         return size_;
@@ -68,4 +73,5 @@ private:
     xcb_damage_damage_t damage_;
     QSize size_;
     bool damaged_;
+    xcb_visualid_t visual_;
 };

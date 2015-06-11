@@ -64,15 +64,19 @@ QSGNode *WindowPixmapItem::updatePaintNode(QSGNode *old, UpdatePaintNodeData *)
     pixmap_ = pixmap;
 
     if (!texture) {
-        texture = new GLXTextureFromPixmap(pixmap->pixmap(), pixmap->size());
+        texture = new GLXTextureFromPixmap(pixmap->pixmap(), pixmap->visual(), pixmap->size());
         node->setTexture(texture);
         node->setOwnsTexture(true);
+        if (texture->isYInverted()) {
+            node->setTextureCoordinatesTransform(QSGSimpleTextureNode::MirrorVertically);
+        } else {
+            node->setTextureCoordinatesTransform(QSGSimpleTextureNode::NoTransform);
+        }
         connect(pixmap.data(), SIGNAL(damaged()), SLOT(update()));
     }
     node->setRect(0, 0, width(), height());
     if (pixmap->isDamaged()) {
         texture->rebind();
-        node->markDirty(QSGNode::DirtyMaterial);
         pixmap->clearDamage();
     }
     return node;

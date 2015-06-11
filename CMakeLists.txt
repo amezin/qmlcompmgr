@@ -41,6 +41,8 @@ target_link_libraries(libqmlcompmgr
                       xcb-composite
                       xcb-xfixes
                       xcb-shape
+                      xcb-render
+                      xcb-render-util
                       "${OPENGL_gl_LIBRARY}"
                       "${X11_X11_LIB}")
 
