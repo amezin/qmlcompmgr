@@ -164,6 +164,12 @@ void ClientWindow::xcbEvent(const xcb_gravity_notify_event_t *e)
     setGeometry(QRect(e->x, e->y, geometry_.width(), geometry_.height()));
 }
 
+void ClientWindow::xcbEvent(const xcb_circulate_notify_event_t *e)
+{
+    Q_ASSERT(e->window == window_);
+    Q_EMIT stackingOrderChanged();
+}
+
 void ClientWindow::xcbEvent(const xcb_property_notify_event_t *e)
 {
     Q_ASSERT(e->window == window_);
