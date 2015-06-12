@@ -33,11 +33,11 @@ Item {
             }
 
             Behavior on opacity {
-                NumberAnimation { }
+                OpacityAnimator { }
             }
 
             Behavior on scale {
-                NumberAnimation { }
+                ScaleAnimator { }
             }
 
             RectangularGlow {
