@@ -47,7 +47,6 @@ Item {
                 glowRadius: 10
                 anchors.fill: parent
                 anchors.margins: -glowRadius / 2
-                visible: !windowRoot.clientWindow.shaped
             }
 
             WindowPixmap {
