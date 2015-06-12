@@ -5,7 +5,6 @@
 #include <QRect>
 
 #include <xcb/xcb.h>
-#include <xcb/shape.h>
 
 class WindowPixmap;
 
@@ -18,8 +17,6 @@ class ClientWindow : public QObject, public QEnableSharedFromThis<ClientWindow>
     Q_PROPERTY(bool mapped READ isMapped NOTIFY mapStateChanged)
     Q_PROPERTY(int zIndex READ zIndex WRITE setZIndex NOTIFY zIndexChanged)
     Q_PROPERTY(bool overrideRedirect READ isOverrideRedirect NOTIFY overrideRedirectChanged)
-    Q_PROPERTY(bool shaped READ isShaped NOTIFY shapedChanged)
-    Q_PROPERTY(bool inputFocus READ hasInputFocus NOTIFY inputFocusChanged)
     Q_PROPERTY(bool transient READ isTransient NOTIFY transientChanged)
 public:
     ClientWindow(xcb_connection_t *, xcb_window_t, QObject *parent = Q_NULLPTR);
@@ -72,16 +69,6 @@ public:
         return overrideRedirect_;
     }
 
-    bool isShaped() const
-    {
-        return clipShaped_ || boundingShaped_;
-    }
-
-    bool hasInputFocus() const
-    {
-        return inputFocus_;
-    }
-
     xcb_window_t transientFor() const
     {
         return transientFor_;
@@ -98,8 +85,6 @@ public:
     void xcbEvent(const xcb_reparent_notify_event_t *);
     void xcbEvent(const xcb_gravity_notify_event_t *);
     void xcbEvent(const xcb_circulate_notify_event_t *);
-    void xcbEvent(const xcb_shape_notify_event_t *);
-    void xcbEvent(const xcb_focus_in_event_t *);
     void xcbEvent(const xcb_property_notify_event_t *);
     void invalidate();
     void setAbove(xcb_window_t above)
@@ -115,8 +100,6 @@ Q_SIGNALS:
     void mapStateChanged(bool mapped);
     void zIndexChanged(int zIndex);
     void overrideRedirectChanged(bool overrideRedirect);
-    void shapedChanged(bool shaped);
-    void inputFocusChanged(bool inputFocus);
     void transientChanged(bool transient);
     void transientForChanged();
 
@@ -139,7 +122,5 @@ private:
     int zIndex_;
     xcb_window_t above_;
     bool overrideRedirect_;
-    bool boundingShaped_, clipShaped_;
-    bool inputFocus_;
     xcb_window_t transientFor_;
 };

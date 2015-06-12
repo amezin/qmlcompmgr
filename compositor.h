@@ -55,7 +55,7 @@ private:
 
     xcb_connection_t *connection_;
     xcb_window_t root_;
-    const xcb_query_extension_reply_t *damageExt_, *shapeExt_;
+    const xcb_query_extension_reply_t *damageExt_;
     xcb_ewmh_connection_t ewmh_;
 
     QMap<xcb_damage_damage_t, WindowPixmap *> pixmaps_;

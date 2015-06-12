@@ -9,7 +9,6 @@
 
 #include <xcb/composite.h>
 #include <xcb/xfixes.h>
-#include <xcb/shape.h>
 #include <xcb/xcb_event.h>
 
 #include "clientwindow.h"
@@ -25,7 +24,6 @@ Compositor::Compositor()
     : connection_(QX11Info::connection()),
       root_(QX11Info::appRootWindow()),
       damageExt_(xcb_get_extension_data(connection_, &xcb_damage_id)),
-      shapeExt_(xcb_get_extension_data(connection_, &xcb_shape_id)),
       initFinished_(false)
 {
     qRegisterMetaType<ClientWindow *>("ClientWindow*");
@@ -202,12 +200,6 @@ bool Compositor::xcbEvent(const xcb_reparent_notify_event_t *e)
     return xcbDispatchEvent(e);
 }
 
-template<>
-bool Compositor::xcbEvent(const xcb_focus_in_event_t *e)
-{
-    return xcbDispatchEvent(e, e->event);
-}
-
 bool Compositor::nativeEventFilter(const QByteArray &eventType, void *message, long *)
 {
     Q_ASSERT(eventType == QByteArrayLiteral("xcb_generic_event_t"));
@@ -221,11 +213,6 @@ bool Compositor::nativeEventFilter(const QByteArray &eventType, void *message, l
         }
         (*i)->xcbEvent(e);
         return true;
-    }
-
-    if (responseType == shapeExt_->first_event + XCB_SHAPE_NOTIFY) {
-        auto e = static_cast<xcb_shape_notify_event_t *>(message);
-        return xcbDispatchEvent(e, e->affected_window);
     }
 
     switch (responseType) {
@@ -246,9 +233,6 @@ bool Compositor::nativeEventFilter(const QByteArray &eventType, void *message, l
     case XCB_CIRCULATE_NOTIFY:
         restack();
         return true;
-    case XCB_FOCUS_IN:
-    case XCB_FOCUS_OUT:
-        return xcbEvent(static_cast<xcb_focus_in_event_t *>(message));
     case XCB_PROPERTY_NOTIFY:
         return xcbDispatchEvent(static_cast<xcb_property_notify_event_t *>(message));
     default:

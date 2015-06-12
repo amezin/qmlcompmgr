@@ -40,7 +40,6 @@ target_link_libraries(libqmlcompmgr
                       xcb-damage
                       xcb-composite
                       xcb-xfixes
-                      xcb-shape
                       xcb-render
                       xcb-render-util
                       xcb-icccm
