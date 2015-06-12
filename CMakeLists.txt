@@ -44,6 +44,7 @@ target_link_libraries(libqmlcompmgr
                       xcb-render
                       xcb-render-util
                       xcb-icccm
+                      xcb-ewmh
                       "${OPENGL_gl_LIBRARY}"
                       "${X11_X11_LIB}")
 

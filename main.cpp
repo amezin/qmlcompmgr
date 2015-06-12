@@ -69,6 +69,8 @@ int main(int argc, char *argv[])
     Compositor compositor;
 
     QQuickView view(compositor.overlayWindow());
+    compositor.registerCompositor(&view);
+
     QObject::connect(&view, &QQuickView::sceneGraphError,
                      [](QQuickWindow::SceneGraphError, const QString &message)
     {

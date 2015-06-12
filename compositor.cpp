@@ -33,6 +33,20 @@ Compositor::Compositor()
     Q_ASSERT(QCoreApplication::instance());
     QCoreApplication::instance()->installNativeEventFilter(this);
 
+    auto ewmhCookie = xcb_ewmh_init_atoms(connection_, &ewmh_);
+    if (!xcb_ewmh_init_atoms_replies(&ewmh_, ewmhCookie, Q_NULLPTR)) {
+        qFatal("Cannot init EWMH");
+    }
+
+    auto wmCmCookie = xcb_ewmh_get_wm_cm_owner_unchecked(&ewmh_, QX11Info::appScreen());
+    xcb_window_t wmCmOwnerWin = XCB_NONE;
+    if (!xcb_ewmh_get_wm_cm_owner_reply(&ewmh_, wmCmCookie, &wmCmOwnerWin, Q_NULLPTR)) {
+        qFatal("Cannot check _NET_WM_CM_Sn");
+    }
+    if (wmCmOwnerWin) {
+        qFatal("Another compositing manager is already running");
+    }
+
     auto attributesCookie = xcb_get_window_attributes_unchecked(connection_, root_);
     auto damageQueryVersionCookie = xcb_damage_query_version_unchecked(connection_, 1, 1);
     auto overlayWindowCookie = xcb_composite_get_overlay_window_unchecked(connection_, root_);
@@ -89,6 +103,21 @@ Compositor::Compositor()
 
 Compositor::~Compositor()
 {
+    xcb_ewmh_connection_wipe(&ewmh_);
+}
+
+void Compositor::registerCompositor(QWindow *w)
+{
+    xcb_ewmh_set_wm_cm_owner(&ewmh_, QX11Info::appScreen(), w->winId(), QX11Info::getTimestamp(), 0, 0);
+
+    auto wmCmCookie = xcb_ewmh_get_wm_cm_owner_unchecked(&ewmh_, QX11Info::appScreen());
+    xcb_window_t wmCmOwnerWin = XCB_NONE;
+    if (!xcb_ewmh_get_wm_cm_owner_reply(&ewmh_, wmCmCookie, &wmCmOwnerWin, Q_NULLPTR)) {
+        qFatal("Cannot check _NET_WM_CM_Sn");
+    }
+    if (wmCmOwnerWin != w->winId()) {
+        qFatal("Another compositing manager is already running");
+    }
 }
 
 template<typename T>

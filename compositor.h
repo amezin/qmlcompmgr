@@ -9,6 +9,7 @@
 
 #include <xcb/xcb.h>
 #include <xcb/damage.h>
+#include <xcb/xcb_ewmh.h>
 
 class QWindow;
 class ClientWindow;
@@ -30,6 +31,8 @@ public:
     {
         return rootGeometry_;
     }
+
+    void registerCompositor(QWindow *);
 
 Q_SIGNALS:
     void windowCreated(ClientWindow *clientWindow);
@@ -53,6 +56,7 @@ private:
     xcb_connection_t *connection_;
     xcb_window_t root_;
     const xcb_query_extension_reply_t *damageExt_, *shapeExt_;
+    xcb_ewmh_connection_t ewmh_;
 
     QMap<xcb_damage_damage_t, WindowPixmap *> pixmaps_;
     QMap<xcb_window_t, QSharedPointer<ClientWindow> > windows_;
