@@ -4,6 +4,27 @@
 
 #include "windowpixmap.h"
 
+class XcbServerGrab
+{
+public:
+    explicit XcbServerGrab(xcb_connection_t *connection)
+        : connection(connection)
+    {
+        xcb_grab_server(connection);
+    }
+
+    ~XcbServerGrab()
+    {
+        xcb_ungrab_server(connection);
+        xcb_flush(connection);
+    }
+
+private:
+    Q_DISABLE_COPY(XcbServerGrab)
+
+    xcb_connection_t *connection;
+};
+
 ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QObject *parent)
     : QObject(parent),
       connection_(connection),
@@ -18,6 +39,8 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
       clipShaped_(false),
       inputFocus_(true)
 {
+    XcbServerGrab grab(connection_);
+
     auto attributesCookie = xcb_get_window_attributes(connection_, window_);
     auto attributes = xcb_get_window_attributes_reply(connection_, attributesCookie, Q_NULLPTR);
     if (!attributes) {
@@ -30,8 +53,8 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
     xcb_change_window_attributes(connection_, window_, XCB_CW_EVENT_MASK, &attributes->your_event_mask);
     xcb_shape_select_input(connection_, window_, 1);
 
-    auto geometryCookie = xcb_get_geometry(connection_, window_);
-    auto shapeCookie = xcb_shape_query_extents(connection_, window_);
+    auto geometryCookie = xcb_get_geometry_unchecked(connection_, window_);
+    auto shapeCookie = xcb_shape_query_extents_unchecked(connection_, window_);
 
     auto geometry = xcb_get_geometry_reply(connection_, geometryCookie, Q_NULLPTR);
     auto shape = xcb_shape_query_extents_reply(connection_, shapeCookie, Q_NULLPTR);
@@ -66,6 +89,8 @@ const QSharedPointer<WindowPixmap> &ClientWindow::pixmap()
         return pixmap_;
     }
     pixmapRealloc_ = false;
+
+    XcbServerGrab grab(connection_);
     QSharedPointer<WindowPixmap> newPixmap(new WindowPixmap(connection_, window_)); // TODO: replace with ::create
     if (newPixmap->isValid()) {
         pixmap_ = newPixmap;
