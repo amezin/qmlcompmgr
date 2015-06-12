@@ -20,6 +20,7 @@ class ClientWindow : public QObject, public QEnableSharedFromThis<ClientWindow>
     Q_PROPERTY(bool overrideRedirect READ isOverrideRedirect NOTIFY overrideRedirectChanged)
     Q_PROPERTY(bool shaped READ isShaped NOTIFY shapedChanged)
     Q_PROPERTY(bool inputFocus READ hasInputFocus NOTIFY inputFocusChanged)
+    Q_PROPERTY(bool transient READ isTransient NOTIFY transientChanged)
 public:
     ClientWindow(xcb_connection_t *, xcb_window_t, QObject *parent = Q_NULLPTR);
     ~ClientWindow() Q_DECL_OVERRIDE;
@@ -81,6 +82,16 @@ public:
         return inputFocus_;
     }
 
+    xcb_window_t transientFor() const
+    {
+        return transientFor_;
+    }
+
+    bool isTransient() const
+    {
+        return transientFor_ != XCB_NONE;
+    }
+
     void xcbEvent(const xcb_configure_notify_event_t *);
     void xcbEvent(const xcb_map_notify_event_t *);
     void xcbEvent(const xcb_unmap_notify_event_t *);
@@ -89,6 +100,7 @@ public:
     void xcbEvent(const xcb_circulate_notify_event_t *);
     void xcbEvent(const xcb_shape_notify_event_t *);
     void xcbEvent(const xcb_focus_in_event_t *);
+    void xcbEvent(const xcb_property_notify_event_t *);
     void invalidate();
     void setAbove(xcb_window_t above)
     {
@@ -105,6 +117,8 @@ Q_SIGNALS:
     void overrideRedirectChanged(bool overrideRedirect);
     void shapedChanged(bool shaped);
     void inputFocusChanged(bool inputFocus);
+    void transientChanged(bool transient);
+    void transientForChanged();
 
     void pixmapChanged(WindowPixmap *pixmap);
     void stackingOrderChanged();
@@ -127,4 +141,5 @@ private:
     bool overrideRedirect_;
     bool boundingShaped_, clipShaped_;
     bool inputFocus_;
+    xcb_window_t transientFor_;
 };

@@ -220,6 +220,8 @@ bool Compositor::nativeEventFilter(const QByteArray &eventType, void *message, l
     case XCB_FOCUS_IN:
     case XCB_FOCUS_OUT:
         return xcbEvent(static_cast<xcb_focus_in_event_t *>(message));
+    case XCB_PROPERTY_NOTIFY:
+        return xcbDispatchEvent(static_cast<xcb_property_notify_event_t *>(message));
     default:
         return false;
     }

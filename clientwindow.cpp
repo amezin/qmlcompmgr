@@ -1,6 +1,7 @@
 #include "clientwindow.h"
 
 #include <xcb/xcb_event.h>
+#include <xcb/xcb_icccm.h>
 
 #include "windowpixmap.h"
 
@@ -37,7 +38,8 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
       overrideRedirect_(false),
       boundingShaped_(false),
       clipShaped_(false),
-      inputFocus_(true)
+      inputFocus_(true),
+      transientFor_(XCB_NONE)
 {
     XcbServerGrab grab(connection_);
 
@@ -49,12 +51,14 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
 
     attributes->your_event_mask = attributes->your_event_mask
             | XCB_EVENT_MASK_STRUCTURE_NOTIFY
-            | XCB_EVENT_MASK_FOCUS_CHANGE;
+            | XCB_EVENT_MASK_FOCUS_CHANGE
+            | XCB_EVENT_MASK_PROPERTY_CHANGE;
     xcb_change_window_attributes(connection_, window_, XCB_CW_EVENT_MASK, &attributes->your_event_mask);
     xcb_shape_select_input(connection_, window_, 1);
 
     auto geometryCookie = xcb_get_geometry_unchecked(connection_, window_);
     auto shapeCookie = xcb_shape_query_extents_unchecked(connection_, window_);
+    auto transientCookie = xcb_icccm_get_wm_transient_for_unchecked(connection_, window_);
 
     auto geometry = xcb_get_geometry_reply(connection_, geometryCookie, Q_NULLPTR);
     auto shape = xcb_shape_query_extents_reply(connection_, shapeCookie, Q_NULLPTR);
@@ -73,6 +77,7 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
     overrideRedirect_ = attributes->override_redirect;
     boundingShaped_ = shape->bounding_shaped;
     clipShaped_ = shape->clip_shaped;
+    xcb_icccm_get_wm_transient_for_reply(connection_, transientCookie, &transientFor_, Q_NULLPTR);
 
     std::free(attributes);
     std::free(geometry);
@@ -197,5 +202,27 @@ void ClientWindow::xcbEvent(const xcb_focus_in_event_t *e)
     } else if (!inputFocus_ && XCB_EVENT_RESPONSE_TYPE(e) == XCB_FOCUS_IN) {
         inputFocus_ = true;
         Q_EMIT inputFocusChanged(inputFocus_);
+    }
+}
+
+void ClientWindow::xcbEvent(const xcb_property_notify_event_t *e)
+{
+    Q_ASSERT(e->window == window_);
+
+    if (e->atom != XCB_ATOM_WM_TRANSIENT_FOR) {
+        return;
+    }
+
+    auto oldIsTransient = isTransient();
+    auto oldTransientFor = transientFor_;
+
+    auto cookie = xcb_icccm_get_wm_transient_for(connection_, window_);
+    xcb_icccm_get_wm_transient_for_reply(connection_, cookie, &transientFor_, Q_NULLPTR);
+
+    if (oldTransientFor != transientFor_) {
+        Q_EMIT transientForChanged();
+    }
+    if (oldIsTransient != isTransient()) {
+        Q_EMIT transientChanged(isTransient());
     }
 }
