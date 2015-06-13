@@ -78,6 +78,7 @@ Item {
                 source: windowPixmap
                 anchors.fill: source
                 visible: brightness != 0
+                cached: true
 
                 Behavior on brightness {
                     NumberAnimation { }
