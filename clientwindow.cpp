@@ -95,6 +95,9 @@ const QSharedPointer<WindowPixmap> &ClientWindow::pixmap()
     XcbServerGrab grab(connection_);
     QSharedPointer<WindowPixmap> newPixmap(new WindowPixmap(connection_, window_)); // TODO: replace with ::create
     if (newPixmap->isValid()) {
+        if (newPixmap->thread() != thread()) { // This method is called from render thread
+            newPixmap->moveToThread(thread());
+        }
         pixmap_ = newPixmap;
         Q_EMIT pixmapChanged(pixmap_.data());
     }
