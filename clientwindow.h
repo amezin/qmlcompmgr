@@ -5,6 +5,7 @@
 #include <QRect>
 
 #include <xcb/xcb.h>
+#include <xcb/xcb_ewmh.h>
 
 class WindowPixmap;
 
@@ -18,8 +19,30 @@ class ClientWindow : public QObject, public QEnableSharedFromThis<ClientWindow>
     Q_PROPERTY(int zIndex READ zIndex WRITE setZIndex NOTIFY zIndexChanged)
     Q_PROPERTY(bool overrideRedirect READ isOverrideRedirect NOTIFY overrideRedirectChanged)
     Q_PROPERTY(bool transient READ isTransient NOTIFY transientChanged)
+    Q_PROPERTY(WmType wmType READ wmType NOTIFY wmTypeChanged)
+
+    Q_ENUMS(WmType)
 public:
-    ClientWindow(xcb_connection_t *, xcb_window_t, QObject *parent = Q_NULLPTR);
+    enum WmType {
+        NONE,
+        UNKNOWN,
+        DESKTOP,
+        DOCK,
+        TOOLBAR,
+        MENU,
+        UTILITY,
+        SPLASH,
+        DIALOG,
+        DROPDOWN_MENU,
+        POPUP_MENU,
+        TOOLTIP,
+        NOTIFICATION,
+        COMBO,
+        DND,
+        NORMAL
+    };
+
+    ClientWindow(xcb_ewmh_connection_t *, xcb_window_t, QObject *parent = Q_NULLPTR);
     ~ClientWindow() Q_DECL_OVERRIDE;
 
     xcb_connection_t *connection() const
@@ -79,6 +102,8 @@ public:
         return transientFor_ != XCB_NONE;
     }
 
+    WmType wmType() const;
+
     void xcbEvent(const xcb_configure_notify_event_t *);
     void xcbEvent(const xcb_map_notify_event_t *);
     void xcbEvent(const xcb_unmap_notify_event_t *);
@@ -102,6 +127,7 @@ Q_SIGNALS:
     void overrideRedirectChanged(bool overrideRedirect);
     void transientChanged(bool transient);
     void transientForChanged();
+    void wmTypeChanged(WmType wmType);
 
     void pixmapChanged(WindowPixmap *pixmap);
     void stackingOrderChanged();
@@ -111,7 +137,11 @@ private:
     void setGeometry(const QRect &);
     void setOverrideRedirect(bool);
 
+    void updateTransientFor();
+    void updateWmType();
+
     xcb_connection_t *connection_;
+    xcb_ewmh_connection_t *ewmh_;
     xcb_window_t window_;
     xcb_window_class_t windowClass_;
     bool valid_;
@@ -123,4 +153,7 @@ private:
     xcb_window_t above_;
     bool overrideRedirect_;
     xcb_window_t transientFor_;
+    xcb_atom_t wmType_;
 };
+
+Q_DECLARE_METATYPE(ClientWindow*)

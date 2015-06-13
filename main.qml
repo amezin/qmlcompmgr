@@ -30,6 +30,9 @@ Item {
                 onInvalidated: {
                     windowRoot.destroy(1000)
                 }
+                onWmTypeChanged: {
+                    console.log(wmType)
+                }
             }
 
             Behavior on opacity {
@@ -46,12 +49,39 @@ Item {
                 opacity: 0.5
                 glowRadius: 10
                 anchors.fill: parent
-                anchors.margins: -glowRadius / 2
+                anchors.leftMargin: -glowRadius / 4
+                anchors.topMargin: -glowRadius / 4
+                anchors.rightMargin: -glowRadius
+                anchors.bottomMargin: -glowRadius
             }
 
             WindowPixmap {
                 id: windowPixmap
                 clientWindow: windowRoot.clientWindow
+                visible: !dimEffect.visible
+            }
+
+            property bool normalWindow: clientWindow.wmType === ClientWindow.NONE ||
+                                        clientWindow.wmType === ClientWindow.UNKNOWN ||
+                                        clientWindow.wmType === ClientWindow.NORMAL ||
+                                        clientWindow.wmType === ClientWindow.DIALOG
+            property bool noDim: clientWindow.overrideRedirect ||
+                                 clientWindow.transient ||
+                                 !normalWindow ||
+                                 !compositor.activeWindow
+            property bool activeWindow: compositor.activeWindow === clientWindow
+            property bool dim: !noDim && !activeWindow
+
+            BrightnessContrast {
+                id: dimEffect
+                brightness: dim ? -0.5 : 0
+                source: windowPixmap
+                anchors.fill: source
+                visible: brightness != 0
+
+                Behavior on brightness {
+                    NumberAnimation { }
+                }
             }
         }
     }

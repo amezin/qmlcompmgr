@@ -26,7 +26,7 @@ Compositor::Compositor()
       damageExt_(xcb_get_extension_data(connection_, &xcb_damage_id)),
       initFinished_(false)
 {
-    qRegisterMetaType<ClientWindow *>("ClientWindow*");
+    qRegisterMetaType<ClientWindow *>();
 
     Q_ASSERT(QCoreApplication::instance());
     QCoreApplication::instance()->installNativeEventFilter(this);
@@ -54,7 +54,10 @@ Compositor::Compositor()
     if (!attributes) {
         qFatal("Cannot get root window attributes");
     }
-    auto newEventMask = attributes->your_event_mask | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_STRUCTURE_NOTIFY;
+    auto newEventMask = attributes->your_event_mask
+            | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
+            | XCB_EVENT_MASK_STRUCTURE_NOTIFY
+            | XCB_EVENT_MASK_PROPERTY_CHANGE;
     xcb_change_window_attributes(connection_, root_, XCB_CW_EVENT_MASK, &newEventMask);
 
     auto treeCookie = xcb_query_tree_unchecked(connection_, root_);
@@ -96,6 +99,8 @@ Compositor::Compositor()
     for (int i = 0; i < xcb_query_tree_children_length(tree.get()); i++) {
         addChildWindow(children[i]);
     }
+    updateActiveWindow();
+
     initFinished_ = true;
 }
 
@@ -200,6 +205,19 @@ bool Compositor::xcbEvent(const xcb_reparent_notify_event_t *e)
     return xcbDispatchEvent(e);
 }
 
+template<>
+bool Compositor::xcbEvent(const xcb_property_notify_event_t *e)
+{
+    if (e->window == root_) {
+        if (e->atom == ewmh_._NET_ACTIVE_WINDOW) {
+            updateActiveWindow();
+        }
+        return false;
+    }
+
+    return xcbDispatchEvent(e);
+}
+
 bool Compositor::nativeEventFilter(const QByteArray &eventType, void *message, long *)
 {
     Q_ASSERT(eventType == QByteArrayLiteral("xcb_generic_event_t"));
@@ -233,7 +251,7 @@ bool Compositor::nativeEventFilter(const QByteArray &eventType, void *message, l
     case XCB_CIRCULATE_NOTIFY:
         return xcbEvent(static_cast<xcb_circulate_notify_event_t *>(message));
     case XCB_PROPERTY_NOTIFY:
-        return xcbDispatchEvent(static_cast<xcb_property_notify_event_t *>(message));
+        return xcbEvent(static_cast<xcb_property_notify_event_t *>(message));
     default:
         return false;
     }
@@ -248,7 +266,7 @@ void Compositor::addChildWindow(xcb_window_t window)
         return;
     }
 
-    QSharedPointer<ClientWindow> w(new ClientWindow(connection_, window)); // TODO: replace with ::create
+    QSharedPointer<ClientWindow> w(new ClientWindow(&ewmh_, window)); // TODO: replace with ::create
     if (w->isValid() && w->windowClass() != XCB_WINDOW_CLASS_INPUT_ONLY) {
         windows_.insert(window, w);
         connect(w.data(), SIGNAL(pixmapChanged(WindowPixmap*)), SLOT(registerPixmap(WindowPixmap*)));
@@ -260,6 +278,8 @@ void Compositor::addChildWindow(xcb_window_t window)
         } else {
             QMetaObject::invokeMethod(this, "windowCreated", Qt::QueuedConnection, Q_ARG(ClientWindow*, w.data()));
         }
+
+        updateActiveWindow();
     }
 }
 
@@ -304,4 +324,36 @@ void Compositor::restack() // TODO: maintain stacking order somehow
             }
         }
     }
+}
+
+QSharedPointer<ClientWindow> Compositor::findTopLevel(xcb_window_t subWindow)
+{
+    while (subWindow && subWindow != root_) {
+        auto found = windows_.constFind(subWindow);
+        if (found != windows_.constEnd()) {
+            return *found;
+        }
+
+        auto cookie = xcb_query_tree(connection_, subWindow);
+        auto tree = xcb_query_tree_reply(connection_, cookie, Q_NULLPTR);
+        subWindow = tree->parent;
+        std::free(tree);
+    }
+    return QSharedPointer<ClientWindow>();
+}
+
+void Compositor::updateActiveWindow()
+{
+    auto cookie = xcb_ewmh_get_active_window_unchecked(&ewmh_, QX11Info::appScreen());
+    xcb_window_t activeWindow = XCB_NONE;
+    if (!xcb_ewmh_get_active_window_reply(&ewmh_, cookie, &activeWindow, Q_NULLPTR)) {
+        return;
+    }
+
+    auto newActiveWindow = findTopLevel(activeWindow);
+    if (activeWindow_ == newActiveWindow) {
+        return;
+    }
+    activeWindow_ = newActiveWindow;
+    Q_EMIT activeWindowChanged();
 }

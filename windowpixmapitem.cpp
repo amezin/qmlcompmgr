@@ -8,7 +8,7 @@
 
 void WindowPixmapItem::registerQmlTypes()
 {
-    qmlRegisterType<ClientWindow>();
+    qmlRegisterUncreatableType<ClientWindow>("Compositor", 1, 0, "ClientWindow", QString());
     qmlRegisterType<WindowPixmap>();
     qmlRegisterType<WindowPixmapItem>("Compositor", 1, 0, "WindowPixmap");
 }
@@ -77,6 +77,7 @@ QSGNode *WindowPixmapItem::updatePaintNode(QSGNode *old, UpdatePaintNodeData *)
     node->setRect(0, 0, width(), height());
     if (pixmap->isDamaged()) {
         texture->rebind();
+        node->markDirty(QSGNode::DirtyMaterial);
         pixmap->clearDamage();
     }
     return node;

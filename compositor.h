@@ -18,6 +18,8 @@ class WindowPixmap;
 class Compositor : public QObject, private QAbstractNativeEventFilter
 {
     Q_OBJECT
+
+    Q_PROPERTY(ClientWindow* activeWindow READ activeWindow NOTIFY activeWindowChanged)
 public:
     Compositor();
     ~Compositor() Q_DECL_OVERRIDE;
@@ -32,16 +34,23 @@ public:
         return rootGeometry_;
     }
 
+    ClientWindow *activeWindow() const
+    {
+        return activeWindow_.data();
+    }
+
     void registerCompositor(QWindow *);
 
 Q_SIGNALS:
     void windowCreated(ClientWindow *clientWindow);
     void rootGeometryChanged(const QRect &);
+    void activeWindowChanged();
 
 private Q_SLOTS:
     void registerPixmap(WindowPixmap *);
     void unregisterPixmap(WindowPixmap *);
     void restack();
+    void updateActiveWindow();
 
 private:
     template<typename T> bool xcbDispatchEvent(const T *, xcb_window_t);
@@ -52,6 +61,7 @@ private:
 
     void addChildWindow(xcb_window_t);
     void removeChildWindow(xcb_window_t);
+    QSharedPointer<ClientWindow> findTopLevel(xcb_window_t);
 
     xcb_connection_t *connection_;
     xcb_window_t root_;
@@ -62,5 +72,6 @@ private:
     QMap<xcb_window_t, QSharedPointer<ClientWindow> > windows_;
     QScopedPointer<QWindow> overlayWindow_;
     QRect rootGeometry_;
+    QSharedPointer<ClientWindow> activeWindow_;
     bool initFinished_;
 };

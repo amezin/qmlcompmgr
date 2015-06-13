@@ -26,9 +26,10 @@ private:
     xcb_connection_t *connection;
 };
 
-ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QObject *parent)
+ClientWindow::ClientWindow(xcb_ewmh_connection_t *ewmh, xcb_window_t window, QObject *parent)
     : QObject(parent),
-      connection_(connection),
+      connection_(ewmh->connection),
+      ewmh_(ewmh),
       window_(window),
       windowClass_(XCB_WINDOW_CLASS_COPY_FROM_PARENT),
       valid_(false),
@@ -36,7 +37,8 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
       pixmapRealloc_(true),
       above_(XCB_NONE),
       overrideRedirect_(false),
-      transientFor_(XCB_NONE)
+      transientFor_(XCB_NONE),
+      wmType_(XCB_NONE)
 {
     XcbServerGrab grab(connection_);
 
@@ -53,9 +55,16 @@ ClientWindow::ClientWindow(xcb_connection_t *connection, xcb_window_t window, QO
 
     auto geometryCookie = xcb_get_geometry_unchecked(connection_, window_);
     auto transientCookie = xcb_icccm_get_wm_transient_for_unchecked(connection_, window_);
+    auto wmTypeCookie = xcb_ewmh_get_wm_window_type_unchecked(ewmh_, window_);
 
     auto geometry = xcb_get_geometry_reply(connection_, geometryCookie, Q_NULLPTR);
     xcb_icccm_get_wm_transient_for_reply(connection_, transientCookie, &transientFor_, Q_NULLPTR);
+    xcb_ewmh_get_atoms_reply_t wmType = {0};
+    xcb_ewmh_get_wm_window_type_reply(ewmh_, wmTypeCookie, &wmType, Q_NULLPTR);
+    if (wmType.atoms_len > 0) {
+        wmType_ = wmType.atoms[0];
+    }
+    xcb_ewmh_get_atoms_reply_wipe(&wmType);
     if (!geometry) {
         std::free(attributes);
         std::free(geometry);
@@ -90,6 +99,35 @@ const QSharedPointer<WindowPixmap> &ClientWindow::pixmap()
         Q_EMIT pixmapChanged(pixmap_.data());
     }
     return pixmap_;
+}
+
+ClientWindow::WmType ClientWindow::wmType() const
+{
+    if (wmType_ == XCB_NONE) {
+        return NONE;
+    }
+
+#define DETECT_WM_TYPE(x) \
+    if (wmType_ == ewmh_->_NET_WM_WINDOW_TYPE_##x) { \
+        return x; \
+    }
+
+    DETECT_WM_TYPE(DESKTOP);
+    DETECT_WM_TYPE(DOCK);
+    DETECT_WM_TYPE(TOOLBAR);
+    DETECT_WM_TYPE(MENU);
+    DETECT_WM_TYPE(UTILITY);
+    DETECT_WM_TYPE(SPLASH);
+    DETECT_WM_TYPE(DIALOG);
+    DETECT_WM_TYPE(DROPDOWN_MENU);
+    DETECT_WM_TYPE(POPUP_MENU);
+    DETECT_WM_TYPE(TOOLTIP);
+    DETECT_WM_TYPE(NOTIFICATION);
+    DETECT_WM_TYPE(COMBO);
+    DETECT_WM_TYPE(DND);
+    DETECT_WM_TYPE(NORMAL);
+
+    return UNKNOWN;
 }
 
 void ClientWindow::invalidate()
@@ -170,14 +208,8 @@ void ClientWindow::xcbEvent(const xcb_circulate_notify_event_t *e)
     Q_EMIT stackingOrderChanged();
 }
 
-void ClientWindow::xcbEvent(const xcb_property_notify_event_t *e)
+void ClientWindow::updateTransientFor()
 {
-    Q_ASSERT(e->window == window_);
-
-    if (e->atom != XCB_ATOM_WM_TRANSIENT_FOR) {
-        return;
-    }
-
     auto oldIsTransient = isTransient();
     auto oldTransientFor = transientFor_;
 
@@ -189,5 +221,37 @@ void ClientWindow::xcbEvent(const xcb_property_notify_event_t *e)
     }
     if (oldIsTransient != isTransient()) {
         Q_EMIT transientChanged(isTransient());
+    }
+}
+
+void ClientWindow::updateWmType()
+{
+    auto wmTypeCookie = xcb_ewmh_get_wm_window_type(ewmh_, window_);
+
+    xcb_ewmh_get_atoms_reply_t wmTypeReply = {0};
+    if (!xcb_ewmh_get_wm_window_type_reply(ewmh_, wmTypeCookie, &wmTypeReply, Q_NULLPTR)) {
+        return;
+    }
+
+    xcb_atom_t newWmType = wmType_;
+    if (wmTypeReply.atoms_len > 0) {
+        newWmType = wmTypeReply.atoms[0];
+    }
+    xcb_ewmh_get_atoms_reply_wipe(&wmTypeReply);
+
+    if (newWmType != wmType_) {
+        wmType_ = newWmType;
+        Q_EMIT wmTypeChanged(wmType());
+    }
+}
+
+void ClientWindow::xcbEvent(const xcb_property_notify_event_t *e)
+{
+    Q_ASSERT(e->window == window_);
+
+    if (e->atom == XCB_ATOM_WM_TRANSIENT_FOR) {
+        updateTransientFor();
+    } else if (e->atom == ewmh_->_NET_WM_WINDOW_TYPE) {
+        updateWmType();
     }
 }

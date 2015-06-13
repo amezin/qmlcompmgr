@@ -17,6 +17,23 @@
     VERIFY_SINGLE_SIGNAL((spy), (value)); \
     QCOMPARE((getExpr), (value))
 
+struct EwmhConnection
+{
+    xcb_ewmh_connection_t connection;
+
+    EwmhConnection()
+    {
+        xcb_ewmh_init_atoms_replies(&connection,
+                                    xcb_ewmh_init_atoms(QX11Info::connection(), &connection),
+                                    Q_NULLPTR);
+    }
+
+    ~EwmhConnection()
+    {
+        xcb_ewmh_connection_wipe(&connection);
+    }
+};
+
 class CompositorTest : public QObject
 {
     Q_OBJECT
@@ -42,20 +59,24 @@ private:
 private Q_SLOTS:
     void testWindowCtor()
     {
+        EwmhConnection ewmh;
         QWindow window;
         window.setGeometry(0, 0, 300, 300);
-        ClientWindow xcbWindow(QX11Info::connection(), window.winId());
+
+        ClientWindow xcbWindow(&ewmh.connection, window.winId());
         QVERIFY(xcbWindow.isValid());
         QCOMPARE(xcbWindow.geometry(), window.geometry());
     }
 
     void testWindowCtorInvalid()
     {
+        EwmhConnection ewmh;
         QWindow window;
         window.setGeometry(0, 0, 300, 300);
         auto id = window.winId();
         window.destroy();
-        ClientWindow xcbWindow(QX11Info::connection(), id);
+
+        ClientWindow xcbWindow(&ewmh.connection, id);
         QVERIFY(!xcbWindow.isValid());
     }
 
