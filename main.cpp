@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 
     Compositor compositor;
 
-    QQuickView view(compositor.overlayWindow());
+    QQuickView view;
     compositor.registerCompositor(&view);
 
     QObject::connect(&view, &QQuickView::sceneGraphError,
@@ -88,6 +88,8 @@ int main(int argc, char *argv[])
                      &logger, SLOT(init()), Qt::DirectConnection);
 
     view.rootContext()->setContextProperty(QStringLiteral("compositor"), &compositor);
+    view.setParent(compositor.overlayWindow());
+
     view.setSource(QStringLiteral("qrc:/main.qml"));
     view.show();
 
